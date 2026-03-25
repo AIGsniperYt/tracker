@@ -37,12 +37,19 @@
     flex: 1; overflow-y: auto; padding: 1rem 1.5rem;
   }
   table {
-    width: 100%; border-collapse: collapse;
+    width: 100%;
+    border-collapse: collapse;
     margin-top: 1rem;
+    table-layout: fixed; /* important */
   }
   th, td {
-    padding: 0.6rem 1rem; border-bottom: 1px solid #333;
-    text-align: left; vertical-align: middle;
+    padding: 0.6rem 1rem;
+    border-bottom: 1px solid #333;
+    text-align: left;
+    vertical-align: middle;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   th {
     color: #0af;
@@ -81,6 +88,7 @@
 <body>
 <header>Past Papers Tracker</header>
 <div class="header-actions">
+  <button id="editColumnsBtn" class="secondary-button">Edit Columns</button>
   <button id="editSubjectsBtn" class="secondary-button">Edit Subjects</button>
   <button id="importBtn" class="secondary-button">Import JSON</button>
   <button id="exportBtn" class="secondary-button">Export JSON</button>
@@ -110,15 +118,14 @@
     <input type="text" id="paper1" placeholder="Paper 1 Score (e.g. 89/100)" />
     <input type="text" id="paper2" placeholder="Paper 2 Score (e.g. 78/100)" />
     <input type="text" id="paper3" placeholder="Paper 3 Score (e.g. 92/100)" style="display:none" />
-    <input type="text" id="totalScore" placeholder="Total Score (e.g. 170/200)" />
-    <input type="number" id="gradeBoundary" placeholder="Grade Boundary for 9" min="0" step="1" />
-    <input type="text" id="averagePercent" placeholder="Average %" />
+    <input type="text" id="gradeBoundary" placeholder="Grade Boundary for 9" min="0" step="1" />
     <input type="text" id="paperNotes" placeholder="Notes (optional)" />
     <button type="submit">Add Paper</button>
   </form>
   <div id="message" class="message"></div>
 
   <table id="papersTable" aria-label="Past papers table">
+    <colgroup id="papersColgroup"></colgroup>
     <thead>
       <tr>
         <th>Order</th>
@@ -135,6 +142,16 @@
     </thead>
     <tbody></tbody>
   </table>
+  <div id="columnsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000c; align-items:center; justify-content:center; z-index:1000;">
+  <div style="background:#1f1f1f; padding:1.5rem; border-radius:8px; min-width:300px; max-width:400px; color:#eee;">
+    <h3>Edit Columns for <span id="columnsSubjectName"></span></h3>
+    <div id="columnsList" style="margin-top:1rem;"></div>
+    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+      <button id="closeColumnsModal" class="secondary-button">Cancel</button>
+      <button id="saveColumnsBtn" class="secondary-button">Save</button>
+    </div>
+  </div>
+</div>
 </main>
 <canvas id="bgCanvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;"></canvas>
 
@@ -263,7 +280,7 @@ async function loadSubjects() {
   }
 }
 
-// ---------- Modal ----------
+// ---------- Subjects Modal ----------
 document.getElementById('editSubjectsBtn').onclick = ()=>{
   document.getElementById('subjectsModal').style.display='flex';
   renderSubjectsModal();
@@ -286,7 +303,7 @@ document.getElementById('saveSubjectsBtn').onclick = async ()=>{
   loadAndRenderTable();
 };
 
-// ---------- Render modal ----------
+// ---------- Render subjects modal ----------
 function renderSubjectsModal(){
   const container=document.getElementById('subjectsList');
   container.innerHTML='';
@@ -308,6 +325,130 @@ function renderSubjectsModal(){
 
 // Load subjects at startup
 loadSubjects();
+
+
+// ---------- Columns Modal ----------
+const editColumnsBtn = document.getElementById('editColumnsBtn');
+const columnsModal = document.getElementById('columnsModal');
+const closeColumnsModal = document.getElementById('closeColumnsModal');
+const saveColumnsBtn = document.getElementById('saveColumnsBtn');
+const columnsList = document.getElementById('columnsList');
+const columnsSubjectName = document.getElementById('columnsSubjectName');
+
+let currentColumns = []; // Holds the live column array for the modal
+
+editColumnsBtn.onclick = async () => {
+  columnsModal.style.display = 'flex';
+  columnsSubjectName.textContent = currentSubject;
+  const cols = await getColumns(currentSubject);
+  currentColumns = [...cols];
+  renderColumnsModal();
+};
+
+closeColumnsModal.onclick = () => {
+  columnsModal.style.display = 'none';
+};
+
+saveColumnsBtn.onclick = async () => {
+  // Read values from inputs
+  const newCols = [...columnsList.querySelectorAll('input')]
+    .map(input => input.value.trim())
+    .filter(v => v); // remove empty
+  currentColumns = newCols;
+  await saveColumns(currentSubject, currentColumns);
+  columnsModal.style.display = 'none';
+  loadAndRenderTable();
+};
+
+// ---------- Render columns modal dynamically ----------
+function renderColumnsModal() {
+  columnsList.innerHTML = '';
+  currentColumns.forEach((col, i) => {
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.alignItems = 'center';
+    div.style.gap = '0.5rem';
+    div.style.marginBottom = '0.4rem';
+
+    const input = document.createElement('input');
+    input.type = 'text';
+    input.value = col;
+    input.dataset.index = i;
+    input.style.flex = '1';
+    input.style.background = '#222';
+    input.style.color = '#eee';
+    input.style.border = 'none';
+    input.style.borderRadius = '4px';
+    input.oninput = (e) => currentColumns[i] = e.target.value;
+
+    const delBtn = document.createElement('button');
+    delBtn.textContent = '✕';
+    delBtn.style.background = '#f44';
+    delBtn.style.color = '#fff';
+    delBtn.style.border = 'none';
+    delBtn.style.borderRadius = '4px';
+    delBtn.style.cursor = 'pointer';
+    delBtn.onclick = () => {
+      currentColumns.splice(i, 1);
+      renderColumnsModal();
+    };
+
+    div.appendChild(input);
+    div.appendChild(delBtn);
+    columnsList.appendChild(div);
+  });
+
+  // Add button
+  const addBtn = document.createElement('button');
+  addBtn.textContent = '+ Add Column';
+  addBtn.style.background = '#0af';
+  addBtn.style.color = '#121212';
+  addBtn.style.border = 'none';
+  addBtn.style.borderRadius = '4px';
+  addBtn.style.padding = '0.4rem 0.8rem';
+  addBtn.style.cursor = 'pointer';
+  addBtn.onclick = () => {
+    currentColumns.push('NewColumn');
+    renderColumnsModal();
+  };
+  columnsList.appendChild(addBtn);
+}
+
+// ---------- Save / Load columns ----------
+async function getColumns(subject) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(subjectsStoreName,'readonly');
+    const store = tx.objectStore(subjectsStoreName);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const subjObj = req.result.find(s=>s.name===subject);
+      resolve(subjObj?.columns || [...columnsDefault]);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
+
+async function saveColumns(subject, columnArray) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(subjectsStoreName,'readwrite');
+    const store = tx.objectStore(subjectsStoreName);
+    const req = store.getAll();
+    req.onsuccess = () => {
+      const subjObj = req.result.find(s=>s.name===subject);
+      if(subjObj){
+        subjObj.columns = columnArray;
+        store.put(subjObj);
+      } else {
+        store.add({name: subject, columns: columnArray});
+      }
+      tx.oncomplete = resolve;
+      tx.onerror = () => reject(tx.error);
+    };
+    req.onerror = () => reject(req.error);
+  });
+}
 
 // ---------- Tabs rendering ----------
 const tabsContainer=document.getElementById('subjectTabs');
@@ -435,7 +576,9 @@ function createEditButton() {
 
 function toggleEdit(row, paper) {
   const editing = row.classList.toggle('editing');
+
   if (editing) {
+    // Turn each cell into input
     for (const td of row.querySelectorAll('td.editable')) {
       const key = td.dataset.key;
       const input = document.createElement('input');
@@ -448,19 +591,20 @@ function toggleEdit(row, paper) {
     }
   } else {
     const updatedData = {};
-    
     const cells = row.querySelectorAll('td.editable');
+
     cells.forEach(td => {
       const key = td.dataset.key;
       const input = td.querySelector('input');
       if (!input) return;
-      
+
       let val = input.value.trim();
       if (key === 'sequence' || key === 'gradeBoundary') {
         val = val === '' ? null : parseFloat(val);
       }
       updatedData[key] = val;
 
+      // Notes icon rendering
       if (key === 'notes') {
         const icon = document.createElement('span');
         icon.textContent = 'ℹ️';
@@ -472,7 +616,44 @@ function toggleEdit(row, paper) {
         td.textContent = val !== null && val !== undefined ? val : '';
       }
     });
-    
+
+    // --- CALCULATE total & average from paper scores ---
+    function parseScore(str) {
+      if (!str || !str.includes('/')) return null;
+      const [num, den] = str.split('/').map(s => parseFloat(s.trim()));
+      if (isNaN(num) || isNaN(den) || den === 0) return null;
+      return { num, den };
+    }
+
+    function calculateTotals(p1, p2, p3) {
+      let totalNum = 0;
+      let totalDen = 0;
+      [p1, p2, p3].forEach(p => {
+        const parsed = parseScore(p);
+        if (parsed) {
+          totalNum += parsed.num;
+          totalDen += parsed.den;
+        }
+      });
+      if (totalDen === 0) return { total: '', avg: '' };
+      const percent = (totalNum / totalDen) * 100;
+      return {
+        total: `${totalNum}/${totalDen}`,
+        avg: `${Number(percent.toPrecision(3)).toFixed(1)}%`
+      };
+    }
+
+    const { total, avg } = calculateTotals(
+      updatedData.paper1 ?? paper.paper1,
+      updatedData.paper2 ?? paper.paper2,
+      updatedData.paper3 ?? paper.paper3
+    );
+
+    // PROGRAM AUTHORITY: override any manual total/average
+    updatedData.total = total;
+    updatedData.averagePercent = avg;
+
+    // Update DB
     updatePaper(paper.id, updatedData).then(() => {
       loadAndRenderTable();
     }).catch(err => {
@@ -481,54 +662,214 @@ function toggleEdit(row, paper) {
   }
 }
 
+// --------- Column settings per subject ---------
+const columnsDefault = ['sequence','year','paper1','paper2','paper3','total','gradeBoundary','averagePercent','notes','edit'];
+let columnsSettings = {}; // {subjectName: [array of visible columns]}
+
+
+function isPaper3Enabled() { // one day fix so p3 is dynamic to more than one subject
+  return currentSubject === 'Maths' || currentSubject === 'Geography';
+}
+
+function formatColumnLabel(key) {
+  const labels = {
+    sequence: 'Order',
+    year: 'Year',
+    paper1: 'Paper 1',
+    paper2: 'Paper 2',
+    paper3: 'Paper 3',
+    total: 'Total',
+    gradeBoundary: 'Grade Boundary (9)',
+    averagePercent: 'Average %',
+    notes: 'Notes',
+    edit: 'Edit'
+  };
+
+  return labels[key] || key; // custom columns show their saved name
+}
+
+function renderTableHeader(visibleColumns) {
+  const headRow = document.querySelector('#papersTable thead tr');
+  headRow.innerHTML = '';
+
+  visibleColumns.forEach(key => {
+    if (key === 'paper3' && !isPaper3Enabled()) return;
+
+    const th = document.createElement('th');
+    th.textContent = formatColumnLabel(key);
+    if (key === 'paper3' && !isPaper3Enabled()) th.style.display = 'none';
+    headRow.appendChild(th);
+  });
+}
+
+function createNotesCell(paper) {
+  const td = document.createElement('td');
+  td.classList.add('editable');
+  td.dataset.key = 'notes';
+
+  const noteIcon = document.createElement('span');
+  noteIcon.textContent = 'ℹ️';
+  noteIcon.title = paper.notes || '';
+  noteIcon.style.cursor = 'help';
+
+  td.appendChild(noteIcon);
+  return td;
+}
+// Load columns for current subject
+async function getColumns(subject) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(subjectsStoreName,'readonly');
+    const store = tx.objectStore(subjectsStoreName);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const subjObj = request.result.find(s=>s.name===subject);
+      resolve(subjObj?.columns || columnsDefault);
+    };
+    request.onerror = () => reject(request.error);
+  });
+}
+
+// Save columns for current subject
+async function saveColumns(subject, columnArray) {
+  const db = await openDB();
+  return new Promise((resolve, reject) => {
+    const tx = db.transaction(subjectsStoreName,'readwrite');
+    const store = tx.objectStore(subjectsStoreName);
+    const request = store.getAll();
+    request.onsuccess = () => {
+      const subjObj = request.result.find(s=>s.name===subject);
+      if(subjObj){
+        subjObj.columns = columnArray;
+        store.put(subjObj);
+      } else {
+        store.add({name:subject, columns: columnArray});
+      }
+      tx.oncomplete = resolve;
+      tx.onerror = ()=>reject(tx.error);
+    };
+    request.onerror = ()=>reject(request.error);
+  });
+}
+
+
 async function loadAndRenderTable() {
   try {
     const papers = await getPapersBySubject(currentSubject);
+    let visibleColumns = await getColumns(currentSubject);
+
+    // paper3 only exists for these subjects
+    visibleColumns = visibleColumns.filter(key => key !== 'paper3' || isPaper3Enabled());
+
     papers.sort((a, b) => (a.sequence || 0) - (b.sequence || 0));
     tableBody.innerHTML = '';
+    renderTableHeader(visibleColumns);
 
     papers.forEach(paper => {
       const tr = document.createElement('tr');
 
-      tr.appendChild(createCell(paper, 'sequence'));
-      tr.appendChild(createCell(paper, 'year'));
-      tr.appendChild(createCell(paper, 'paper1'));
-      tr.appendChild(createCell(paper, 'paper2'));
-      
-      const paper3Td = createCell(paper, 'paper3');
-      if (currentSubject === 'Maths' || currentSubject === 'Geography') {
-        paper3Td.style.display = '';
-      } else {
-        paper3Td.style.display = 'none';
-      }
-      tr.appendChild(paper3Td);
+      visibleColumns.forEach(key => {
+        if (key === 'edit') {
+          const editTd = document.createElement('td');
+          const editBtn = createEditButton();
+          editBtn.addEventListener('click', () => toggleEdit(tr, paper));
+          editTd.appendChild(editBtn);
+          tr.appendChild(editTd);
+          return;
+        }
 
-      tr.appendChild(createCell(paper, 'total'));
-      tr.appendChild(createCell(paper, 'gradeBoundary'));
-      tr.appendChild(createCell(paper, 'averagePercent'));
+        if (key === 'notes') {
+          tr.appendChild(createNotesCell(paper));
+          return;
+        }
 
-      const notesTd = document.createElement('td');
-      notesTd.classList.add('editable');
-      const noteIcon = document.createElement('span');
-      noteIcon.textContent = 'ℹ️';
-      noteIcon.title = paper.notes || '';
-      noteIcon.style.cursor = 'help';
-      notesTd.appendChild(noteIcon);
-      notesTd.dataset.key = 'notes';
-      tr.appendChild(notesTd);
+        const td = document.createElement('td');
+        td.classList.add('editable');
+        td.dataset.key = key;
+        td.textContent = paper[key] !== undefined && paper[key] !== null ? paper[key] : '';
 
-      const editTd = document.createElement('td');
-      const editBtn = createEditButton();
-      editBtn.addEventListener('click', () => toggleEdit(tr, paper));
-      editTd.appendChild(editBtn);
-      tr.appendChild(editTd);
+        if (['paper1', 'paper2', 'paper3'].includes(key) && paper[`${key}Date`]) {
+          td.title = `Marked on: ${paper[`${key}Date`]}`;
+        }
+
+        tr.appendChild(td);
+      });
 
       tableBody.appendChild(tr);
     });
-  } catch (error) {
-    console.error('Error loading papers:', error);
-    messageEl.textContent = 'Error loading papers. Please refresh.';
+
+    autoSizeColumns();
+  } catch (err) {
+    console.error(err);
+    messageEl.textContent = 'Error loading papers.';
   }
+}
+
+
+function autoSizeColumns() {
+  const table = document.getElementById('papersTable');
+  const colgroup = document.getElementById('papersColgroup');
+
+  const headers = [...table.querySelectorAll('thead th')];
+  const rows = [...table.querySelectorAll('tbody tr')];
+
+  const isNumericLike = text => /^[\d\s./%()-]+$/.test(text.trim());
+
+  const cols = headers.map(th => ({
+    weight: th.textContent.includes('Notes') ? 2.8 : th.textContent.includes('Edit') ? 0.4 : 1,
+    maxLen: th.textContent.trim().length
+  }));
+
+  rows.forEach(row => {
+    [...row.children].forEach((td, i) => {
+      const text = td.textContent.trim();
+      cols[i].maxLen = Math.max(cols[i].maxLen, text.length);
+
+      if (isNumericLike(text)) cols[i].weight = Math.max(cols[i].weight, 0.8);
+      else cols[i].weight = Math.max(cols[i].weight, 1.2);
+
+      const headerText = headers[i]?.textContent || '';
+      if (headerText.includes('Notes')) cols[i].weight = 2.8;
+      if (headerText.includes('Edit')) cols[i].weight = 0.4;
+    });
+  });
+
+  const totalWeight = cols.reduce((sum, c) => sum + c.weight, 0);
+
+  colgroup.innerHTML = '';
+  cols.forEach(col => {
+    const el = document.createElement('col');
+    el.style.width = `${(col.weight / totalWeight) * 100}%`;
+    colgroup.appendChild(el);
+  });
+}
+function parseScore(str) {
+  if (!str || !str.includes('/')) return null;
+  const [num, den] = str.split('/').map(s => parseFloat(s.trim()));
+  if (isNaN(num) || isNaN(den) || den === 0) return null;
+  return { num, den };
+}
+
+function calculateTotals(p1, p2, p3) {
+  let totalNum = 0;
+  let totalDen = 0;
+
+  [p1, p2, p3].forEach(p => {
+    const parsed = parseScore(p);
+    if (parsed) {
+      totalNum += parsed.num;
+      totalDen += parsed.den;
+    }
+  });
+
+  if (totalDen === 0) return { total: '', avg: '' };
+
+  const percent = (totalNum / totalDen) * 100;
+
+  return {
+    total: `${totalNum}/${totalDen}`,
+    avg: `${Number(percent.toPrecision(3)).toFixed(1)}%`
+  };
 }
 
 addForm.addEventListener('submit', async e => {
@@ -541,10 +882,9 @@ addForm.addEventListener('submit', async e => {
   const paper2 = document.getElementById('paper2').value.trim();
   const paper3Input = document.getElementById('paper3');
   const paper3 = (currentSubject === 'Maths' || currentSubject === 'Geography') ? paper3Input.value.trim() : undefined;
-  const total = document.getElementById('totalScore').value.trim();
   const gradeBoundary = parseFloat(document.getElementById('gradeBoundary').value.trim());
   const notes = document.getElementById('paperNotes').value.trim();
-  const averagePercent = document.getElementById('averagePercent').value.trim();
+  const { total, avg } = calculateTotals(paper1, paper2, paper3);
 
   if (!sequence || !year) {
     messageEl.textContent = 'Order and Year are required.';
@@ -557,10 +897,10 @@ addForm.addEventListener('submit', async e => {
     year,
     paper1,
     paper2,
-    total,
+    total, // program controlled
     gradeBoundary: isNaN(gradeBoundary) ? null : gradeBoundary,
     notes,
-    averagePercent: averagePercent || null
+    averagePercent: avg // program controlled
   };
 
   if (paper1) newPaper.paper1Date = new Date().toLocaleDateString('en-GB');
