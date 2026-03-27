@@ -1296,26 +1296,39 @@ addForm.addEventListener('submit', async e => {
 async function exportAllData() {
   try {
     const db = await openDB();
-    const tx = db.transaction(storeName, 'readonly');
-    const store = tx.objectStore(storeName);
-    const request = store.getAll();
 
-    request.onsuccess = () => {
-      const dataStr = JSON.stringify(request.result, null, 2);
-      const blob = new Blob([dataStr], { type: 'application/json' });
-      const url = URL.createObjectURL(blob);
+    // Get papers
+    const papersTx = db.transaction(storeName, 'readonly');
+    const papersStore = papersTx.objectStore(storeName);
+    const papersReq = papersStore.getAll();
 
-      const a = document.createElement('a');
-      a.href = url;
-      a.download = 'past_papers_data.json';
-      document.body.appendChild(a);
-      a.click();
-      a.remove();
-      URL.revokeObjectURL(url);
+    // Get subjects (with columns too)
+    const subjTx = db.transaction(subjectsStoreName, 'readonly');
+    const subjStore = subjTx.objectStore(subjectsStoreName);
+    const subjReq = subjStore.getAll();
+
+    papersReq.onsuccess = () => {
+      subjReq.onsuccess = () => {
+        const exportData = {
+          papers: papersReq.result,
+          subjects: subjReq.result // includes {name, columns}
+        };
+
+        const dataStr = JSON.stringify(exportData, null, 2);
+        const blob = new Blob([dataStr], { type: 'application/json' });
+        const url = URL.createObjectURL(blob);
+
+        const a = document.createElement('a');
+        a.href = url;
+        a.download = 'past_papers_full_backup.json';
+        document.body.appendChild(a);
+        a.click();
+        a.remove();
+        URL.revokeObjectURL(url);
+      };
     };
   } catch (error) {
     console.error('Export failed:', error);
-    messageEl.textContent = 'Export failed. Please try again.';
   }
 }
 
@@ -1327,32 +1340,57 @@ document.getElementById('importBtn').onclick = () => {
 document.getElementById('importFile').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-  
+
   try {
     const text = await file.text();
     const data = JSON.parse(text);
-    if (!Array.isArray(data)) throw new Error('Invalid JSON format');
 
     const db = await openDB();
-    const tx = db.transaction(storeName, 'readwrite');
-    const store = tx.objectStore(storeName);
-    
-    for (const entry of data) {
-      if (entry.dateAdded) delete entry.dateAdded;
-      
-      ['paper1', 'paper2', 'paper3'].forEach(p => {
-        if (entry[p] && !entry[`${p}Date`]) {
-          entry[`${p}Date`] = new Date().toLocaleDateString('en-GB');
-        }
-      });
-      
-      await store.put(entry);
+
+    // -------- IMPORT PAPERS --------
+    if (Array.isArray(data)) {
+      // OLD FORMAT SUPPORT
+      const tx = db.transaction(storeName, 'readwrite');
+      const store = tx.objectStore(storeName);
+
+      for (const entry of data) {
+        await store.put(entry);
+      }
+
+      await tx.complete;
     }
-    
-    await tx.complete;
-    messageEl.textContent = 'Import successful.';
+
+    // -------- NEW FORMAT --------
+    if (data.papers && data.subjects) {
+      // Clear and replace papers
+      const paperTx = db.transaction(storeName, 'readwrite');
+      const paperStore = paperTx.objectStore(storeName);
+      await paperStore.clear();
+
+      for (const entry of data.papers) {
+        await paperStore.put(entry);
+      }
+      await paperTx.complete;
+
+      // Clear and replace subjects
+      const subjTx = db.transaction(subjectsStoreName, 'readwrite');
+      const subjStore = subjTx.objectStore(subjectsStoreName);
+      await subjStore.clear();
+
+      for (const subj of data.subjects) {
+        await subjStore.put(subj); // includes columns
+      }
+      await subjTx.complete;
+    }
+
+    // Reload everything
+    await loadSubjects();
     loadAndRenderTable();
+
+    messageEl.textContent = 'Full import successful.';
+
   } catch (err) {
+    console.error(err);
     messageEl.textContent = 'Failed to import JSON: ' + err.message;
   }
 });
