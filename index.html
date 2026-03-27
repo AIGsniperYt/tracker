@@ -5,89 +5,296 @@
 <meta name="viewport" content="width=device-width, initial-scale=1" />
 <title>Past Papers Tracker</title>
 <style>
-  @import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
-  body {
-    margin: 0; background: #121212; color: #eee;
-    font-family: 'Inter', sans-serif;
-    display: flex; flex-direction: column; height: 100vh;
+@import url('https://fonts.googleapis.com/css2?family=Inter&display=swap');
+
+body {
+  margin: 0;
+  background: #121212;
+  color: #eee;
+  font-family: 'Inter', sans-serif;
+  display: flex;
+  flex-direction: column;
+  height: 100vh;
+}
+
+header {
+  padding: 1rem 1.5rem;
+  background: #1f1f1f;
+  font-size: 1.5rem;
+  font-weight: 600;
+  user-select: none;
+  border-bottom: 1px solid #333;
+}
+
+#bgCanvas {
+  opacity: 0.3;
+  background: transparent;
+}
+
+.tabs {
+  display: flex;
+  background: #1a1a1a;
+  border-bottom: 1px solid #333;
+}
+
+.tab {
+  flex: 1;
+  text-align: center;
+  padding: 0.8rem 0;
+  cursor: pointer;
+  user-select: none;
+  font-weight: 500;
+  border-bottom: 3px solid transparent;
+  transition: border-color 0.3s;
+}
+
+.tab.active {
+  border-bottom-color: #0af;
+  color: #0af;
+}
+
+main {
+  flex: 1;
+  overflow-y: auto;
+  padding: 1rem 1.5rem;
+}
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  margin-top: 1rem;
+  table-layout: fixed;
+}
+
+th, td {
+  padding: 0.6rem 1rem;
+  border-bottom: 1px solid #333;
+  text-align: left;
+  vertical-align: middle;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+th {
+  color: #0af;
+  user-select: none;
+}
+
+td.editable {
+  cursor: pointer;
+  position: relative;
+}
+
+td.editable:hover {
+  background: #222;
+}
+
+.header-actions {
+  position: absolute;
+  top: 1rem;
+  right: 1rem;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.secondary-button {
+  background: transparent;
+  border: 1px solid #0af;
+  color: #0af;
+  padding: 0.4rem 0.8rem;
+  border-radius: 6px;
+  cursor: pointer;
+  transition: 0.2s;
+}
+
+.secondary-button:hover {
+  background: #0af2;
+  color: white;
+}
+
+.primary-button {
+  background: #0af;
+  color: #121212;
+  border: none;
+  padding: 0.45rem 0.9rem;
+  border-radius: 6px;
+  cursor: pointer;
+  font-weight: 500;
+}
+
+.primary-button:hover {
+  background: #08c;
+}
+
+.edit-icon {
+  width: 16px;
+  height: 16px;
+  fill: #0af;
+  margin-left: 8px;
+  vertical-align: middle;
+  cursor: pointer;
+}
+
+input[type="text"],
+input[type="number"] {
+  background: #222;
+  border: 1px solid #333;
+  color: #eee;
+  font-size: 1rem;
+  padding: 4px 6px;
+  border-radius: 6px;
+  width: 100%;
+  box-sizing: border-box;
+}
+
+input:focus {
+  outline: none;
+  border-color: #0af;
+  box-shadow: 0 0 6px #0af5;
+}
+
+.add-form {
+  margin-top: 1rem;
+  display: flex;
+  gap: 10px;
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.add-form input {
+  flex: 1 1 150px;
+}
+
+.add-form button {
+  font-size: 1rem;
+  padding: 0.5rem 0.8rem;
+  border-radius: 6px;
+  border: none;
+  cursor: pointer;
+  background: #0af;
+  color: #121212;
+}
+
+.add-form button:hover {
+  background: #08c;
+}
+
+.message {
+  margin-top: 0.6rem;
+  color: #0fa;
+  font-size: 0.9rem;
+}
+
+main::-webkit-scrollbar {
+  width: 8px;
+}
+
+main::-webkit-scrollbar-thumb {
+  background: #0af6;
+  border-radius: 4px;
+}
+
+main::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+/* ---------- MODALS (GLOBAL UPGRADE) ---------- */
+
+.modal {
+  display: none;
+  position: fixed;
+  inset: 0;
+  background: rgba(0,0,0,0.65);
+  backdrop-filter: blur(1px);
+  align-items: center;
+  justify-content: center;
+  z-index: 1000;
+}
+
+.modal-row {
+  margin-bottom: 8px;
+}
+
+.modal-content {
+  background: linear-gradient(145deg, #1a1a1a, #222);
+  border: 1px solid #2f2f2f;
+  padding: 1.5rem;
+  border-radius: 12px;
+  min-width: 340px;
+  max-width: 520px;
+  color: #eee;
+  box-shadow: 0 10px 40px #000a;
+  animation: fadeIn 0.2s ease;
+}
+
+.modal h3 {
+  margin-top: 0;
+  color: #0af;
+  font-weight: 600;
+}
+
+.modal-list > div {
+  display: flex;
+  gap: 6px;
+  margin-bottom: 8px;
+}
+
+.modal input {
+  background: #181818;
+  border: 1px solid #333;
+  color: #eee;
+  border-radius: 6px;
+  padding: 4px 6px;
+}
+
+.modal-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 0.5rem;
+  margin-top: 1rem;
+}
+
+.modal button[data-i] {
+  background: #f44;
+  color: white;
+  border: none;
+  padding: 0 6px;
+}
+.modal.closing {
+  animation: fadeOut 0.2s ease forwards;
+}
+
+.modal.closing .modal-content {
+  animation: slideOut 0.2s ease forwards;
+}
+
+@keyframes fadeOut {
+  to { opacity: 0; }
+}
+
+@keyframes slideOut {
+  to {
+    transform: translateY(-60px);
+    opacity: 0;
   }
-  header {
-    padding: 1rem 1.5rem; background: #1f1f1f; font-size: 1.5rem;
-    font-weight: 600; user-select: none;
-    border-bottom: 1px solid #333;
+}
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
   }
-  #bgCanvas {
-    opacity: 0.3;
-    background: transparent;
+  to {
+    opacity: 1;
+    transform: translateY(0);
   }
-  .tabs {
-    display: flex; background: #1a1a1a; border-bottom: 1px solid #333;
-  }
-  .tab {
-    flex: 1; text-align: center; padding: 0.8rem 0; cursor: pointer;
-    user-select: none; font-weight: 500;
-    border-bottom: 3px solid transparent;
-    transition: border-color 0.3s;
-  }
-  .tab.active {
-    border-bottom-color: #0af;
-    color: #0af;
-  }
-  main {
-    flex: 1; overflow-y: auto; padding: 1rem 1.5rem;
-  }
-  table {
-    width: 100%;
-    border-collapse: collapse;
-    margin-top: 1rem;
-    table-layout: fixed; /* important */
-  }
-  th, td {
-    padding: 0.6rem 1rem;
-    border-bottom: 1px solid #333;
-    text-align: left;
-    vertical-align: middle;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
-  }
-  th {
-    color: #0af;
-    user-select: none;
-  }
-  td.editable {
-    cursor: pointer; position: relative;
-  }
-  td.editable:hover { background: #222; }
-  .header-actions {
-    position: absolute; top: 1rem; right: 1rem;
-    display: flex; gap: 0.5rem;
-  }
-  .secondary-button {
-    background: transparent; border: 1px solid #0af; color: #0af;
-    padding: 0.4rem 0.8rem; border-radius: 4px; cursor: pointer;
-    transition: background 0.2s, color 0.2s;
-  }
-  .secondary-button:hover { background: #0af2; color: white; }
-  .edit-icon { width:16px;height:16px;fill:#0af;margin-left:8px;vertical-align:middle;cursor:pointer; }
-  input[type="text"], input[type="number"] {
-    background: #222; border: none; color: #eee;
-    font-size: 1rem; padding: 4px 6px; border-radius:4px; width:100%; box-sizing:border-box;
-  }
-  .add-form { margin-top:1rem; display:flex; gap:10px; flex-wrap:wrap; align-items:center; }
-  .add-form input, .add-form button { font-size:1rem; padding:0.5rem 0.8rem; border-radius:4px; border:none; cursor:pointer; user-select:none; }
-  .add-form input[type="text"], .add-form input[type="number"] { background:#222; color:#eee; flex:1 1 150px; }
-  .add-form button { background:#0af; color:#121212; }
-  .add-form button:hover { background:#08c; }
-  .message { margin-top:0.6rem; color:#0fa; font-size:0.9rem; }
-  main::-webkit-scrollbar { width:8px; }
-  main::-webkit-scrollbar-thumb { background:#0af6; border-radius:4px; }
-  main::-webkit-scrollbar-track { background:transparent; }
+}
 </style>
 </head>
 <body>
 <header>Past Papers Tracker</header>
 <div class="header-actions">
+  <button id="editHighlightBtn" class="secondary-button">Edit Highlights</button>
   <button id="editColumnsBtn" class="secondary-button">Edit Columns</button>
   <button id="editSubjectsBtn" class="secondary-button">Edit Subjects</button>
   <button id="importBtn" class="secondary-button">Import JSON</button>
@@ -95,17 +302,48 @@
   <input type="file" id="importFile" accept=".json" hidden>
 </div>
 
-<div id="subjectsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000c; align-items:center; justify-content:center; z-index:1000;">
-  <div style="background:#1f1f1f; padding:1.5rem; border-radius:8px; min-width:300px; max-width:400px; color:#eee;">
-    <h3>Edit Subjects</h3>
-    <div id="subjectsList" style="margin-top:1rem;"></div>
-    <div style="display:flex; gap:0.5rem; margin-top:1rem;">
-      <input type="text" id="newSubjectInput" placeholder="New subject" style="flex:1; background:#222; color:#eee; border:none; padding:0.4rem 0.6rem; border-radius:4px;">
-      <button id="addNewSubjectBtn" style="background:#0af; border:none; color:#121212; padding:0.4rem 0.8rem; border-radius:4px; cursor:pointer;">Add</button>
+<div id="highlightModal" class="modal">
+  <div class="modal-content">
+    <h3>Score Highlight Rules</h3>
+
+    <div id="highlightList" class="modal-list"></div>
+
+    <button id="addHighlightRule" class="primary-button">+ Add Rule</button>
+
+    <div class="modal-actions">
+      <button id="closeHighlightModal" class="secondary-button">Cancel</button>
+      <button id="saveHighlightRules" class="primary-button">Save</button>
     </div>
-    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
+  </div>
+</div>
+
+<div id="subjectsModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Subjects</h3>
+
+    <div id="subjectsList" class="modal-list"></div>
+
+    <div style="display:flex; gap:0.5rem; margin-top:1rem;">
+      <input type="text" id="newSubjectInput" placeholder="New subject" style="flex:1;">
+      <button id="addNewSubjectBtn" class="primary-button">Add</button>
+    </div>
+
+    <div class="modal-actions">
       <button id="closeSubjectsModal" class="secondary-button">Cancel</button>
-      <button id="saveSubjectsBtn" class="secondary-button">Save</button>
+      <button id="saveSubjectsBtn" class="primary-button">Save</button>
+    </div>
+  </div>
+</div>
+
+<div id="columnsModal" class="modal">
+  <div class="modal-content">
+    <h3>Edit Columns for <span id="columnsSubjectName"></span></h3>
+
+    <div id="columnsList" class="modal-list"></div>
+
+    <div class="modal-actions">
+      <button id="closeColumnsModal" class="secondary-button">Cancel</button>
+      <button id="saveColumnsBtn" class="primary-button">Save</button>
     </div>
   </div>
 </div>
@@ -142,15 +380,6 @@
     </thead>
     <tbody></tbody>
   </table>
-  <div id="columnsModal" style="display:none; position:fixed; top:0; left:0; width:100%; height:100%; background:#000c; align-items:center; justify-content:center; z-index:1000;">
-  <div style="background:#1f1f1f; padding:1.5rem; border-radius:8px; min-width:300px; max-width:400px; color:#eee;">
-    <h3>Edit Columns for <span id="columnsSubjectName"></span></h3>
-    <div id="columnsList" style="margin-top:1rem;"></div>
-    <div style="display:flex; justify-content:flex-end; gap:0.5rem; margin-top:1rem;">
-      <button id="closeColumnsModal" class="secondary-button">Cancel</button>
-      <button id="saveColumnsBtn" class="secondary-button">Save</button>
-    </div>
-  </div>
 </div>
 </main>
 <canvas id="bgCanvas" style="position: fixed; top: 0; left: 0; width: 100%; height: 100%; z-index: -1;"></canvas>
@@ -280,13 +509,21 @@ async function loadSubjects() {
   }
 }
 
+function closeModal(modal) {
+  modal.classList.add('closing');
+  setTimeout(() => {
+    modal.classList.remove('closing');
+    modal.style.display = 'none';
+  }, 200);
+}
+
 // ---------- Subjects Modal ----------
 document.getElementById('editSubjectsBtn').onclick = ()=>{
   document.getElementById('subjectsModal').style.display='flex';
   renderSubjectsModal();
 };
 document.getElementById('closeSubjectsModal').onclick = ()=>{
-  document.getElementById('subjectsModal').style.display='none';
+  closeModal(subjectsModal); // <-- changed
 };
 document.getElementById('addNewSubjectBtn').onclick = ()=>{
   const val = document.getElementById('newSubjectInput').value.trim();
@@ -297,7 +534,7 @@ document.getElementById('saveSubjectsBtn').onclick = async ()=>{
     subjects[parseInt(input.dataset.index)] = input.value.trim();
   });
   await saveSubjects(subjects);
-  document.getElementById('subjectsModal').style.display='none';
+  closeModal(subjectsModal); // <-- changed
   renderTabs();
   updatePaper3Visibility();
   loadAndRenderTable();
@@ -323,9 +560,6 @@ function renderSubjectsModal(){
   });
 }
 
-// Load subjects at startup
-loadSubjects();
-
 
 // ---------- Columns Modal ----------
 const editColumnsBtn = document.getElementById('editColumnsBtn');
@@ -346,7 +580,7 @@ editColumnsBtn.onclick = async () => {
 };
 
 closeColumnsModal.onclick = () => {
-  columnsModal.style.display = 'none';
+  closeModal(columnsModal); // <-- changed
 };
 
 saveColumnsBtn.onclick = async () => {
@@ -356,7 +590,7 @@ saveColumnsBtn.onclick = async () => {
     .filter(v => v); // remove empty
   currentColumns = newCols;
   await saveColumns(currentSubject, currentColumns);
-  columnsModal.style.display = 'none';
+  closeModal(columnsModal); // <-- changed
   loadAndRenderTable();
 };
 
@@ -368,8 +602,7 @@ function renderColumnsModal() {
     div.style.display = 'flex';
     div.style.alignItems = 'center';
     div.style.gap = '0.5rem';
-    div.style.marginBottom = '0.4rem';
-
+    div.classList.add('modal-row');
     const input = document.createElement('input');
     input.type = 'text';
     input.value = col;
@@ -450,6 +683,105 @@ async function saveColumns(subject, columnArray) {
   });
 }
 
+// ---------- Highlight Rules ----------
+let highlightRules = [
+  { label: "CRITICALLY LOW", min: 0, max: 50, color: "255,0,0", alpha: 0.2 },
+  { label: "Good", min: 70, max: 80, color: "255,255,0", alpha: 0.2 },
+  { label: "AMAZING", min: 90, max: 100, color: "0,255,0", alpha: 0.25 }
+];
+
+const highlightModal = document.getElementById('highlightModal');
+const highlightList = document.getElementById('highlightList');
+
+document.getElementById('editHighlightBtn').onclick = () => {
+  highlightModal.style.display = 'flex';
+  renderHighlightRules();
+};
+
+document.getElementById('closeHighlightModal').onclick = () => {
+  closeModal(highlightModal); // <-- changed
+};
+
+document.getElementById('addHighlightRule').onclick = () => {
+  highlightRules.push({ label: "New", min: 0, max: 100, color: "0,200,255", alpha: 0.2 });
+  renderHighlightRules();
+};
+
+document.getElementById('saveHighlightRules').onclick = () => {
+  closeModal(highlightModal); // <-- changed
+  loadAndRenderTable();
+};
+
+// ---------- Render rules UI ----------
+function renderHighlightRules() {
+  highlightList.innerHTML = '';
+
+  highlightRules.forEach((rule, i) => {
+    const div = document.createElement('div');
+    div.style.display = 'flex';
+    div.style.gap = '6px';
+    div.style.marginBottom = '6px';
+
+    div.innerHTML = `
+      <input value="${rule.label}" data-i="${i}" data-k="label" style="flex:1;">
+      <input type="number" value="${rule.min}" data-i="${i}" data-k="min" style="width:60px;">
+      <span>% -</span>
+      <input type="number" value="${rule.max}" data-i="${i}" data-k="max" style="width:60px;">
+      <input type="color" value="${rgbToHex(rule.color)}" data-i="${i}" data-k="color">
+      <input type="number" step="0.05" min="0" max="1" value="${rule.alpha}" data-i="${i}" data-k="alpha" style="width:60px;">
+      <button data-i="${i}">✕</button>
+    `;
+
+    div.querySelectorAll('input').forEach(inp => {
+      inp.oninput = e => {
+        const idx = inp.dataset.i;
+        const key = inp.dataset.k;
+        if (key === "color") {
+          highlightRules[idx].color = hexToRgb(inp.value);
+        } else {
+          highlightRules[idx][key] = key === "label" ? inp.value : parseFloat(inp.value);
+        }
+      };
+    });
+
+    div.querySelector('button').onclick = () => {
+      highlightRules.splice(i, 1);
+      renderHighlightRules();
+    };
+
+    highlightList.appendChild(div);
+  });
+}
+
+// ---------- Apply highlighting ----------
+function getHighlightStyle(percent) {
+  if (percent == null) return null;
+
+  for (const rule of highlightRules) {
+    if (percent >= rule.min && percent <= rule.max) {
+      return `background: rgba(${rule.color}, ${rule.alpha});`;
+    }
+  }
+  return null;
+}
+
+// Inject into table rendering
+function applyHighlight(td, percent) {
+  const style = getHighlightStyle(percent);
+  if (style) td.style = style;
+}
+
+// ---------- Helpers ----------
+function rgbToHex(rgb) {
+  const [r,g,b] = rgb.split(',').map(Number);
+  return "#" + [r,g,b].map(x => x.toString(16).padStart(2,'0')).join('');
+}
+
+function hexToRgb(hex) {
+  const bigint = parseInt(hex.slice(1), 16);
+  return `${(bigint>>16)&255},${(bigint>>8)&255},${bigint&255}`;
+}
+
 // ---------- Tabs rendering ----------
 const tabsContainer=document.getElementById('subjectTabs');
 function renderTabs(){
@@ -470,16 +802,20 @@ function renderTabs(){
 
 // ---------- Paper 3 visibility ----------
 function updatePaper3Visibility(){
-  const paper3Input=document.getElementById('paper3');
-  const paper3Header=document.getElementById('paper3Header');
+  const paper3Input = document.getElementById('paper3');
+  const paper3Header = document.getElementById('paper3Header');
+
+  if (!paper3Input || !paper3Header) return; //  prevents crash
+
   if(currentSubject==='Maths'||currentSubject==='Geography'){
     paper3Input.style.display='inline-block';
     paper3Header.style.display='';
   } else {
-    paper3Input.style.display='none'; paper3Header.style.display='none'; paper3Input.value='';
+    paper3Input.style.display='none';
+    paper3Header.style.display='none';
+    paper3Input.value='';
   }
 }
-
 // ---------- Papers functions ----------
 async function getPapersBySubject(subject) {
   const db = await openDB();
@@ -550,19 +886,6 @@ const messageEl = document.getElementById('message');
 
 function clearMessage() {
   messageEl.textContent = '';
-}
-
-function createCell(paper, key) {
-  const td = document.createElement('td');
-  td.classList.add('editable');
-  td.textContent = paper[key] !== undefined ? paper[key] : '';
-  td.dataset.key = key;
-  
-  if (['paper1', 'paper2', 'paper3'].includes(key) && paper[`${key}Date`]) {
-    td.title = `Marked on: ${paper[`${key}Date`]}`;
-  }
-  
-  return td;
 }
 
 function createEditButton() {
@@ -788,6 +1111,11 @@ async function loadAndRenderTable() {
         td.dataset.key = key;
         td.textContent = paper[key] !== undefined && paper[key] !== null ? paper[key] : '';
 
+        if (key === 'averagePercent') {
+          const num = parseFloat(td.textContent);
+          if (!isNaN(num)) applyHighlight(td, num);
+        }
+
         if (['paper1', 'paper2', 'paper3'].includes(key) && paper[`${key}Date`]) {
           td.title = `Marked on: ${paper[`${key}Date`]}`;
         }
@@ -799,12 +1127,55 @@ async function loadAndRenderTable() {
     });
 
     autoSizeColumns();
+    recalcPrecalculatedColumns(); // <- recalculates totals and averages
   } catch (err) {
     console.error(err);
     messageEl.textContent = 'Error loading papers.';
   }
 }
+function recalcPrecalculatedColumns() {
+  const tbody = document.querySelector('#papersTable tbody');
+  tbody.querySelectorAll('tr').forEach(row => {
+    // Safely get cell value as number
+    function getCellNumber(key) {
+      const td = row.querySelector(`td[data-key="${key}"]`);
+      if (!td) return 0;
 
+      // If td has input (from editing), use input.value
+      const input = td.querySelector('input');
+      let val = input ? input.value : td.textContent;
+
+      if (!val) return 0;
+      // parse "89/100" or just "89"
+      const match = val.match(/^(\d+)(?:\/\d+)?$/);
+      return match ? parseInt(match[1], 10) : 0;
+    }
+
+    const paper1 = getCellNumber('paper1');
+    const paper2 = getCellNumber('paper2');
+    const paper3 = getCellNumber('paper3');
+
+    const total = paper1 + paper2 + paper3;
+    const avg = Math.round(total / (paper3 ? 3 : 2)); // handle optional paper3
+
+    const totalCell = row.querySelector('td[data-key="total"]');
+    const avgCell = row.querySelector('td[data-key="avg"]');
+
+    if (totalCell) totalCell.textContent = total;
+    if (avgCell) avgCell.textContent = avg + '%';
+  });
+}
+
+// Optional: trigger recalc on input change
+document.querySelector('#papersTable tbody').addEventListener('input', recalcPrecalculatedColumns);
+
+// Parse "89/100" or just "89" to number
+function parseScore(str) {
+  if (!str) return null;
+  if (typeof str === 'number') return str;
+  const match = str.match(/^(\d+)\s*\/\s*(\d+)$/);
+  return match ? parseInt(match[1],10) : (Number(str) || null);
+}
 
 function autoSizeColumns() {
   const table = document.getElementById('papersTable');
@@ -990,6 +1361,9 @@ document.getElementById('importFile').addEventListener('change', async e => {
 renderTabs();
 updatePaper3Visibility();
 loadAndRenderTable();
+
+// Load subjects at startup
+loadSubjects();
 </script>
 </body>
 </html>
