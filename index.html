@@ -209,7 +209,7 @@ main::-webkit-scrollbar-track {
   backdrop-filter: blur(1px);
   align-items: center;
   justify-content: center;
-  z-index: 1000;
+  z-index: 2000;
 }
 
 .modal-row {
@@ -289,11 +289,101 @@ main::-webkit-scrollbar-track {
     transform: translateY(0);
   }
 }
+
+.sidebar {
+  position: fixed;
+  top: 0;
+  left: 0;
+  height: 100%;
+  background: linear-gradient(180deg, #161616, #1c1c1c);
+  border-right: 1px solid #2a2a2a;
+  padding-top: 15px;
+
+  width: 70px; /* collapsed */
+  transition: width 0.3s cubic-bezier(0.2, 0.9, 0.4, 1.1);
+  overflow-x: hidden;
+  overflow-y: auto;
+}
+
+.sidebar.expanded {
+  width: 240px;
+}
+
+/* Items */
+#sidebarSubjects {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 0 6px;
+}
+
+/* Sidebar items */
+.sidebar-item {
+  display: flex;
+  align-items: center;
+  justify-content: center;     /* icon centered when collapsed */
+  padding: 10px;
+  border-radius: 10px;
+  cursor: pointer;
+  color: #ccc;
+  transition: justify-content 0.2s ease;
+}
+
+.sidebar-item:hover {
+  background: #2a2a2a;
+  color: #fff;
+}
+
+.sidebar-item.active {
+  background: #0af2;
+  color: #0af;
+}
+
+/* Icon – fixed size */
+.sidebar-icon {
+  width: 24px;
+  height: 24px;
+  flex-shrink: 0;
+}
+
+/* Text – hidden when collapsed, appears when expanded */
+.sidebar-text {
+  display: none;                /* completely removed from layout when collapsed */
+  margin-left: 12px;            /* space between icon and text when expanded */
+  white-space: nowrap;
+}
+
+/* When sidebar is expanded, change layout */
+.sidebar.expanded .sidebar-item {
+  justify-content: flex-start;  /* icon moves to the left */
+}
+
+.sidebar.expanded .sidebar-text {
+  display: inline-block;        /* text becomes visible and takes space */
+}
+
+/* Layout shift */
+#appLayout {
+  margin-left: 70px;
+  transition: margin-left 0.3s ease;
+}
+
+#appLayout.expanded {
+  margin-left: 240px;
+}
 </style>
 </head>
 <body>
-<header>Past Papers Tracker</header>
-<div class="header-actions">
+<div id="sidebar" class="sidebar">
+  <div id="sidebarSubjects">
+    <div id="menuToggleItem" class="sidebar-item">
+      <div class="sidebar-icon">☰</div>
+      <div class="sidebar-text">Collapse</div>
+    </div>
+  </div>
+</div>
+<div id="appLayout">
+<header>Past Papers Tracker</header><div class="header-actions">
   <button id="editHighlightBtn" class="secondary-button">Edit Highlights</button>
   <button id="editColumnsBtn" class="secondary-button">Edit Columns</button>
   <button id="editSubjectsBtn" class="secondary-button">Edit Subjects</button>
@@ -348,7 +438,6 @@ main::-webkit-scrollbar-track {
   </div>
 </div>
 
-<div class="tabs" id="subjectTabs"></div>
 <main>
   <form id="addPaperForm" class="add-form" autocomplete="off">
     <input type="number" id="paperSequence" placeholder="Order (e.g. 1)" min="1" required />
@@ -647,7 +736,7 @@ function renderColumnsModal() {
   columnsList.appendChild(addBtn);
 }
 
-// ---------- Save / Load columns ----------
+// ---------- Save / Load columns for current subject ----------
 async function getColumns(subject) {
   const db = await openDB();
   return new Promise((resolve, reject) => {
@@ -783,23 +872,56 @@ function hexToRgb(hex) {
 }
 
 // ---------- Tabs rendering ----------
-const tabsContainer=document.getElementById('subjectTabs');
-function renderTabs(){
-  tabsContainer.innerHTML='';
-  subjects.forEach(subj=>{
-    const tab=document.createElement('div');
-    tab.className='tab'+(subj===currentSubject?' active':'');
-    tab.textContent=subj;
-    tab.onclick=()=>{
-      currentSubject=subj;
+const sidebar = document.getElementById('sidebar');
+const sidebarSubjects = document.getElementById('sidebarSubjects');
+
+const subjectIcons = {
+  biology: "🧬",
+  chemistry: "⚗️",
+  physics: "⚡",
+  maths: "📐",
+  "english lit": "📖",
+  "english lang": "✍️",
+  "computer science": "💻",
+  geography: "🌍"
+};
+
+function getSubjectIcon(name) {
+  const key = name.toLowerCase();
+  return subjectIcons[key] || "📘"; // fallback
+}
+
+function renderTabs() {
+  const toggle = document.getElementById('menuToggleItem'); // save it
+
+  sidebarSubjects.innerHTML = '';
+  sidebarSubjects.appendChild(toggle); // put it back FIRST
+
+  subjects.forEach(subj => {
+    const item = document.createElement('div');
+    item.className = 'sidebar-item ' + (subj === currentSubject ? 'active' : '');
+
+    const icon = document.createElement('div');
+    icon.className = 'sidebar-icon';
+    icon.textContent = getSubjectIcon(subj);
+
+    const text = document.createElement('div');
+    text.className = 'sidebar-text';
+    text.textContent = subj;
+
+    item.appendChild(icon);
+    item.appendChild(text);
+
+    item.onclick = () => {
+      currentSubject = subj;
       updatePaper3Visibility();
       renderTabs();
       loadAndRenderTable();
     };
-    tabsContainer.appendChild(tab);
+
+    sidebarSubjects.appendChild(item);
   });
 }
-
 // ---------- Paper 3 visibility ----------
 function updatePaper3Visibility(){
   const paper3Input = document.getElementById('paper3');
@@ -1038,43 +1160,6 @@ function createNotesCell(paper) {
   td.appendChild(noteIcon);
   return td;
 }
-// Load columns for current subject
-async function getColumns(subject) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(subjectsStoreName,'readonly');
-    const store = tx.objectStore(subjectsStoreName);
-    const request = store.getAll();
-    request.onsuccess = () => {
-      const subjObj = request.result.find(s=>s.name===subject);
-      resolve(subjObj?.columns || columnsDefault);
-    };
-    request.onerror = () => reject(request.error);
-  });
-}
-
-// Save columns for current subject
-async function saveColumns(subject, columnArray) {
-  const db = await openDB();
-  return new Promise((resolve, reject) => {
-    const tx = db.transaction(subjectsStoreName,'readwrite');
-    const store = tx.objectStore(subjectsStoreName);
-    const request = store.getAll();
-    request.onsuccess = () => {
-      const subjObj = request.result.find(s=>s.name===subject);
-      if(subjObj){
-        subjObj.columns = columnArray;
-        store.put(subjObj);
-      } else {
-        store.add({name:subject, columns: columnArray});
-      }
-      tx.oncomplete = resolve;
-      tx.onerror = ()=>reject(tx.error);
-    };
-    request.onerror = ()=>reject(request.error);
-  });
-}
-
 
 async function loadAndRenderTable() {
   try {
@@ -1133,6 +1218,7 @@ async function loadAndRenderTable() {
     messageEl.textContent = 'Error loading papers.';
   }
 }
+
 function recalcPrecalculatedColumns() {
   const tbody = document.querySelector('#papersTable tbody');
   tbody.querySelectorAll('tr').forEach(row => {
@@ -1168,14 +1254,6 @@ function recalcPrecalculatedColumns() {
 
 // Optional: trigger recalc on input change
 document.querySelector('#papersTable tbody').addEventListener('input', recalcPrecalculatedColumns);
-
-// Parse "89/100" or just "89" to number
-function parseScore(str) {
-  if (!str) return null;
-  if (typeof str === 'number') return str;
-  const match = str.match(/^(\d+)\s*\/\s*(\d+)$/);
-  return match ? parseInt(match[1],10) : (Number(str) || null);
-}
 
 function autoSizeColumns() {
   const table = document.getElementById('papersTable');
@@ -1297,103 +1375,157 @@ async function exportAllData() {
   try {
     const db = await openDB();
 
-    // Get papers
-    const papersTx = db.transaction(storeName, 'readonly');
-    const papersStore = papersTx.objectStore(storeName);
-    const papersReq = papersStore.getAll();
+    // Get all papers
+    const papers = await new Promise((resolve, reject) => {
+      const tx = db.transaction(storeName, 'readonly');
+      const store = tx.objectStore(storeName);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
 
-    // Get subjects (with columns too)
-    const subjTx = db.transaction(subjectsStoreName, 'readonly');
-    const subjStore = subjTx.objectStore(subjectsStoreName);
-    const subjReq = subjStore.getAll();
+    // Get all subjects data (includes columns configuration)
+    const subjectData = await new Promise((resolve, reject) => {
+      const tx = db.transaction(subjectsStoreName, 'readonly');
+      const store = tx.objectStore(subjectsStoreName);
+      const request = store.getAll();
+      request.onsuccess = () => resolve(request.result);
+      request.onerror = () => reject(request.error);
+    });
 
-    papersReq.onsuccess = () => {
-      subjReq.onsuccess = () => {
-        const exportData = {
-          papers: papersReq.result,
-          subjects: subjReq.result // includes {name, columns}
-        };
-
-        const dataStr = JSON.stringify(exportData, null, 2);
-        const blob = new Blob([dataStr], { type: 'application/json' });
-        const url = URL.createObjectURL(blob);
-
-        const a = document.createElement('a');
-        a.href = url;
-        a.download = 'past_papers_full_backup.json';
-        document.body.appendChild(a);
-        a.click();
-        a.remove();
-        URL.revokeObjectURL(url);
-      };
+    // Create complete export object
+    const fullExport = {
+      papers: papers,
+      subjects: subjectData,
+      exportDate: new Date().toISOString(),
+      version: "1.0"
     };
+
+    // Create and trigger download
+    const dataStr = JSON.stringify(fullExport, null, 2);
+    const blob = new Blob([dataStr], { type: 'application/json' });
+    const url = URL.createObjectURL(blob);
+
+    const a = document.createElement('a');
+    a.href = url;
+    a.download = 'past_papers_full_backup.json';
+    document.body.appendChild(a);
+    a.click();
+    a.remove();
+    URL.revokeObjectURL(url);
+    
+    messageEl.textContent = 'Full backup exported successfully!';
   } catch (error) {
     console.error('Export failed:', error);
+    messageEl.textContent = 'Export failed. Please try again.';
   }
 }
-
 document.getElementById('exportBtn').addEventListener('click', exportAllData);
 document.getElementById('importBtn').onclick = () => {
   document.getElementById('importFile').click();
 };
 
+function recalcPaper(entry) {
+  const { total, avg } = calculateTotals(entry.paper1, entry.paper2, entry.paper3);
+  entry.total = total;
+  entry.averagePercent = avg;
+  return entry;
+}
+
+
 document.getElementById('importFile').addEventListener('change', async e => {
   const file = e.target.files[0];
   if (!file) return;
-
+  
   try {
     const text = await file.text();
-    const data = JSON.parse(text);
-
+    const parsed = JSON.parse(text);
+    
+    // IMPORT FULL STRUCTURE SUPPORT - handles old + new formats
+    let data = parsed.papers || parsed; // supports old format (array) + new format (object with papers)
+    let importedSubjects = parsed.subjects || null;
+    
+    if (!Array.isArray(data)) throw new Error('Invalid JSON format: expected papers array');
+    
+    // SUBJECT AUTO-DETECTION (fallback for old format imports)
+    let detectedSubjects = new Set();
+    
+    for (let entry of data) {
+      if (entry.subject) detectedSubjects.add(entry.subject);
+    }
+    
     const db = await openDB();
-
-    // -------- IMPORT PAPERS --------
-    if (Array.isArray(data)) {
-      // OLD FORMAT SUPPORT
-      const tx = db.transaction(storeName, 'readwrite');
-      const store = tx.objectStore(storeName);
-
-      for (const entry of data) {
-        await store.put(entry);
-      }
-
-      await tx.complete;
+    
+    // Import papers
+    const papersTx = db.transaction(storeName, 'readwrite');
+    const papersStore = papersTx.objectStore(storeName);
+    
+    for (let entry of data) {
+      entry = recalcPaper(entry); // FORCE overwrite totals and averages
+      
+      ['paper1','paper2','paper3'].forEach(p => {
+        if (entry[p] && !entry[`${p}Date`]) {
+          entry[`${p}Date`] = new Date().toLocaleDateString('en-GB');
+        }
+      });
+      
+      await papersStore.put(entry);
     }
-
-    // -------- NEW FORMAT --------
-    if (data.papers && data.subjects) {
-      // Clear and replace papers
-      const paperTx = db.transaction(storeName, 'readwrite');
-      const paperStore = paperTx.objectStore(storeName);
-      await paperStore.clear();
-
-      for (const entry of data.papers) {
-        await paperStore.put(entry);
+    
+    await papersTx.complete;
+    
+    // Handle subjects import
+    if (importedSubjects && Array.isArray(importedSubjects) && importedSubjects.length > 0) {
+      // New format: import full subject data (with column configurations)
+      const subjectsTx = db.transaction(subjectsStoreName, 'readwrite');
+      const subjectsStore = subjectsTx.objectStore(subjectsStoreName);
+      
+      // Clear existing subjects
+      await subjectsStore.clear();
+      
+      // Import all subject data
+      for (let subject of importedSubjects) {
+        await subjectsStore.put(subject);
       }
-      await paperTx.complete;
-
-      // Clear and replace subjects
-      const subjTx = db.transaction(subjectsStoreName, 'readwrite');
-      const subjStore = subjTx.objectStore(subjectsStoreName);
-      await subjStore.clear();
-
-      for (const subj of data.subjects) {
-        await subjStore.put(subj); // includes columns
-      }
-      await subjTx.complete;
+      
+      await subjectsTx.complete;
+      
+      // Update in-memory subjects array
+      subjects = importedSubjects.map(s => s.name);
+      messageEl.textContent = `Full import successful! Imported ${data.length} papers and ${importedSubjects.length} subjects with column configurations.`;
+      
+    } else if (detectedSubjects.size > 0) {
+      // Fallback: old format import - auto-detect subjects from papers
+      subjects = [...new Set([...subjects, ...detectedSubjects])];
+      await saveSubjects(subjects);
+      messageEl.textContent = `Import successful. Added ${detectedSubjects.size} new subject(s) from papers.`;
+      
+    } else {
+      // No subjects detected
+      messageEl.textContent = `Import successful. Imported ${data.length} papers.`;
     }
-
-    // Reload everything
-    await loadSubjects();
+    
+    // Refresh UI
+    renderTabs();
+    updatePaper3Visibility();
     loadAndRenderTable();
-
-    messageEl.textContent = 'Full import successful.';
-
+    
   } catch (err) {
-    console.error(err);
+    console.error('Import failed:', err);
     messageEl.textContent = 'Failed to import JSON: ' + err.message;
   }
 });
+
+const appLayout = document.getElementById('appLayout');
+
+document.getElementById('menuToggleItem').onclick = () => {
+  const expanded = sidebar.classList.toggle('expanded');
+  appLayout.classList.toggle('expanded', expanded);
+
+  // optional: change label
+  document.querySelector('#menuToggleItem .sidebar-text').textContent =
+    expanded ? 'Collapse' : '';
+};
 
 // Initial render
 renderTabs();
