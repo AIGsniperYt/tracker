@@ -371,6 +371,11 @@ main::-webkit-scrollbar-track {
 #appLayout.expanded {
   margin-left: 240px;
 }
+/* Non-selectable UI elements */
+header, .tab, th, .sidebar-item, .sidebar-icon, .sidebar-text, .modal
+.primary-button, .secondary-button, .edit-icon, #menuToggleItem {
+  user-select: none;
+}
 </style>
 </head>
 <body>
@@ -1222,33 +1227,59 @@ async function loadAndRenderTable() {
 function recalcPrecalculatedColumns() {
   const tbody = document.querySelector('#papersTable tbody');
   tbody.querySelectorAll('tr').forEach(row => {
-    // Safely get cell value as number
-    function getCellNumber(key) {
+    // Parse score from fraction format
+    function parseScoreFromCell(key) {
       const td = row.querySelector(`td[data-key="${key}"]`);
-      if (!td) return 0;
-
+      if (!td) return null;
+      
       // If td has input (from editing), use input.value
       const input = td.querySelector('input');
       let val = input ? input.value : td.textContent;
-
-      if (!val) return 0;
-      // parse "89/100" or just "89"
-      const match = val.match(/^(\d+)(?:\/\d+)?$/);
-      return match ? parseInt(match[1], 10) : 0;
+      
+      if (!val) return null;
+      
+      // Parse format like "89/100"
+      const match = val.match(/(\d+)\s*\/\s*(\d+)/);
+      if (match) {
+        return {
+          num: parseInt(match[1], 10),
+          den: parseInt(match[2], 10)
+        };
+      }
+      return null;
     }
-
-    const paper1 = getCellNumber('paper1');
-    const paper2 = getCellNumber('paper2');
-    const paper3 = getCellNumber('paper3');
-
-    const total = paper1 + paper2 + paper3;
-    const avg = Math.round(total / (paper3 ? 3 : 2)); // handle optional paper3
-
+    
+    const paper1 = parseScoreFromCell('paper1');
+    const paper2 = parseScoreFromCell('paper2');
+    const paper3 = parseScoreFromCell('paper3');
+    
+    let totalNum = 0;
+    let totalDen = 0;
+    
+    if (paper1) {
+      totalNum += paper1.num;
+      totalDen += paper1.den;
+    }
+    if (paper2) {
+      totalNum += paper2.num;
+      totalDen += paper2.den;
+    }
+    if (paper3 && isPaper3Enabled()) {
+      totalNum += paper3.num;
+      totalDen += paper3.den;
+    }
+    
     const totalCell = row.querySelector('td[data-key="total"]');
-    const avgCell = row.querySelector('td[data-key="avg"]');
-
-    if (totalCell) totalCell.textContent = total;
-    if (avgCell) avgCell.textContent = avg + '%';
+    const avgCell = row.querySelector('td[data-key="averagePercent"]');
+    
+    if (totalDen > 0) {
+      if (totalCell) totalCell.textContent = `${totalNum}/${totalDen}`;
+      const percent = (totalNum / totalDen) * 100;
+      if (avgCell) avgCell.textContent = `${Math.round(percent)}%`;
+    } else {
+      if (totalCell) totalCell.textContent = '';
+      if (avgCell) avgCell.textContent = '';
+    }
   });
 }
 
@@ -1523,8 +1554,7 @@ document.getElementById('menuToggleItem').onclick = () => {
   appLayout.classList.toggle('expanded', expanded);
 
   // optional: change label
-  document.querySelector('#menuToggleItem .sidebar-text').textContent =
-    expanded ? 'Collapse' : '';
+  document.querySelector('#menuToggleItem .sidebar-text').textContent = expanded ? 'Collapse' : '';
 };
 
 // Initial render
